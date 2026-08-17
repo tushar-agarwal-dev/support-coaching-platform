@@ -165,8 +165,8 @@ class MongoDB:
     async def connect_to_database(cls):
         logger.info(f"Connecting to MongoDB at {settings.MONGODB_URI}")
         try:
-            temp_client = AsyncIOMotorClient(settings.MONGODB_URI, serverSelectionTimeoutMS=1000)
-            await asyncio.wait_for(temp_client.admin.command('ping'), timeout=1.5)
+            temp_client = AsyncIOMotorClient(settings.MONGODB_URI, serverSelectionTimeoutMS=5000)
+            await asyncio.wait_for(temp_client.admin.command('ping'), timeout=5.0)
             
             cls.client = temp_client
             cls.db = cls.client[settings.MONGODB_DB_NAME]
