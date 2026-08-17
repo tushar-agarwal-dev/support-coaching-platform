@@ -65,10 +65,25 @@ def generate_customer_response(session_config: dict, history: list, latest_agent
         return response
     except Exception as e:
         logger.error(f"Error generating customer response: {e}", exc_info=True)
-        # Safe fallback
+        # Dynamic, progressive fallback messages to prevent repetitive replies when LLM is unavailable
+        product = session_config.get("product", "service")
+        issue = session_config.get("issue_type", "problem")
+        
+        fallback_replies = [
+            f"Hi, I'm calling because my {product} has a {issue} issue. Can you help me resolve this?",
+            f"I understand you are checking, but this {product} issue is disrupting my work. What is the status?",
+            f"I have already tried restarting it, but the {issue} persists. Is there a workaround?",
+            f"This is taking too long. I would like to request a manager escalation or a refund for my {product}.",
+            "I'm very frustrated. Please connect me to your supervisor immediately."
+        ]
+        
+        # Advance the reply slot according to current conversation length (history size)
+        turn_index = min(len(history) // 2, len(fallback_replies) - 1)
+        selected_reply = fallback_replies[turn_index]
+        
         return CustomerResponseSchema(
-            message="I am still waiting for you to resolve my issue. This is very frustrating.",
-            current_mood="frustrated",
-            frustration_score=min(10.0, frustration_score + 1.0),
-            escalation_level=escalation_level
+            message=selected_reply,
+            current_mood="frustrated" if turn_index > 0 else "neutral",
+            frustration_score=min(10.0, frustration_score + 1.0) if turn_index > 0 else frustration_score,
+            escalation_level=min(2, escalation_level + (1 if turn_index > 2 else 0))
         )
