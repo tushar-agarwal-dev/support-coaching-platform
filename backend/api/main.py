@@ -1,5 +1,7 @@
 import logging
-from fastapi import FastAPI, Depends
+import asyncio
+import httpx
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config.settings import settings
 from backend.database.mongodb import MongoDB
@@ -21,11 +23,39 @@ app = FastAPI(
 # Set CORS origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+async def fetch_geoip_and_log(ip: str):
+    if ip in ["127.0.0.1", "localhost", "::1"]:
+        logger.info(f"[VISITOR] Local connection from IP: {ip}")
+        return
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.get(f"http://ip-api.com/json/{ip}", timeout=5.0)
+            if res.status_code == 200:
+                data = res.json()
+                if data.get("status") == "success":
+                    logger.info(f"[VISITOR] Live Connection! IP: {ip} | City: {data.get('city')} | Country: {data.get('country')} | ISP: {data.get('isp')}")
+                    return
+        logger.info(f"[VISITOR] Live Connection! IP: {ip} (GeoIP Lookup Failed)")
+    except Exception as e:
+        logger.warning(f"[VISITOR] IP: {ip} | GeoIP Lookup Error: {e}")
+
+@app.middleware("http")
+async def track_visitor_ip(request: Request, call_next):
+    # Retrieve true client IP from proxy header
+    x_forwarded = request.headers.get("X-Forwarded-For")
+    client_ip = x_forwarded.split(",")[0].strip() if x_forwarded else (request.client.host if request.client else "Unknown")
+    
+    # Run geoip lookup in background so we don't block the API response latency
+    asyncio.create_task(fetch_geoip_and_log(client_ip))
+    
+    return await call_next(request)
+
 
 # Startup / Shutdown Handlers
 @app.on_event("startup")
