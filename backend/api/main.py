@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import httpx
+from datetime import datetime
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config.settings import settings
@@ -39,6 +40,17 @@ async def fetch_geoip_and_log(ip: str):
             if res.status_code == 200:
                 data = res.json()
                 if data.get("status") == "success":
+                    # Save to MongoDB Atlas permanently!
+                    log_doc = {
+                        "ip": ip,
+                        "city": data.get("city"),
+                        "country": data.get("country"),
+                        "isp": data.get("isp"),
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                    if MongoDB.db is not None:
+                        await MongoDB.db["visitor_logs"].insert_one(log_doc)
+                    
                     logger.info(f"[VISITOR] Live Connection! IP: {ip} | City: {data.get('city')} | Country: {data.get('country')} | ISP: {data.get('isp')}")
                     return
         logger.info(f"[VISITOR] Live Connection! IP: {ip} (GeoIP Lookup Failed)")
