@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import copy
+import uuid
 from motor.motor_asyncio import AsyncIOMotorClient
 from backend.config.settings import settings
 
@@ -100,6 +101,8 @@ class MockCollection:
         return None
 
     async def insert_one(self, doc):
+        if "_id" not in doc:
+            doc["_id"] = str(uuid.uuid4())
         self.store[self.name][doc["_id"]] = copy.deepcopy(doc)
         return doc
 
