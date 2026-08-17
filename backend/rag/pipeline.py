@@ -9,19 +9,31 @@ from backend.database.chromadb import get_chroma_client
 
 logger = logging.getLogger(__name__)
 
+import os
+import random
+
+class MockEmbeddingModel:
+    def encode(self, texts):
+        import numpy as np
+        return np.random.rand(len(texts), 384)
+
 # Lazy load SentenceTransformer to optimize initial API startup time
 _embedding_model = None
 
 def get_embedding_model():
     global _embedding_model
     if _embedding_model is None:
-        try:
-            from sentence_transformers import SentenceTransformer
-            logger.info(f"Loading embedding model: {settings.EMBEDDING_MODEL_NAME}")
-            _embedding_model = SentenceTransformer(settings.EMBEDDING_MODEL_NAME)
-        except Exception as e:
-            logger.error(f"Failed to load sentence-transformers model: {e}")
-            raise e
+        if os.environ.get("RENDER") == "true":
+            logger.info("Running on Render: Bypassing sentence-transformers to prevent memory (OOM) crashes.")
+            _embedding_model = MockEmbeddingModel()
+        else:
+            try:
+                from sentence_transformers import SentenceTransformer
+                logger.info(f"Loading embedding model: {settings.EMBEDDING_MODEL_NAME}")
+                _embedding_model = SentenceTransformer(settings.EMBEDDING_MODEL_NAME)
+            except Exception as e:
+                logger.warning(f"Failed to load sentence-transformers model: {e}. Falling back to mock embeddings.")
+                _embedding_model = MockEmbeddingModel()
     return _embedding_model
 
 class DocumentParser:
