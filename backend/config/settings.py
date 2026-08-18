@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     # Groq AI Settings
     GROQ_API_KEY: str | None = None
-    GROQ_MODEL_NAME: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL_NAME: str = "llama-3.1-8b-instant"
 
 
     model_config = SettingsConfigDict(
