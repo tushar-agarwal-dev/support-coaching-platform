@@ -79,11 +79,37 @@ def coaching_agent_node(state: ConversationState) -> dict:
         ]
     except Exception as e:
         logger.error(f"Error in Coaching Suggestions Agent: {e}", exc_info=True)
-        # Safe fallback suggestions
+        # Context-aware fallback suggestions depending on customer query keywords
+        metadata = state.get("metadata", {}) or {}
+        product = metadata.get("product", "service")
+        issue = metadata.get("issue_type", "problem")
+        latest_msg = message_content.lower()
+        
+        empathetic = "I understand your frustration regarding this issue. Let me look into this and resolve it for you."
+        professional = f"I am accessing your account profile now to investigate the {issue} on your {product}."
+        concise = f"I apologize. Checking your {product} status now to resolve the {issue}."
+        
+        if "refund" in latest_msg or "billing" in latest_msg or "charge" in latest_msg:
+            empathetic = "I completely understand your frustration with this billing issue. Let me check our billing history to refund any duplicate charges right away."
+            professional = f"Thank you for reaching out. I am opening our billing logs now to review the transactions for your {product}."
+            concise = "I apologize for the charge. Checking your payment history now to issue a refund."
+        elif any(k in latest_msg for k in ["delivery", "late", "ship", "track", "package"]):
+            empathetic = "I know how frustrating it is when a shipment is delayed. Let me track this delivery and see where it is held up."
+            professional = f"I am looking up the transit details and shipping carrier status for your {product}."
+            concise = "I apologize for the delivery delay. Checking your package status now."
+        elif any(k in latest_msg for k in ["e-sim", "esim", "sim", "service", "signal"]):
+            empathetic = "I understand the urgency of having mobile service. Let me check your eSIM activation state."
+            professional = f"I am checking the network activation portal for your {product} to verify the eSIM status."
+            concise = "Apologies for the cellular issue. Verifying your eSIM status now."
+        elif any(k in latest_msg for k in ["damage", "broken", "crack", "cracked", "faulty"]):
+            empathetic = "I am so sorry to hear that your item arrived damaged. Let me set up a free replacement order for you."
+            professional = f"I am reviewing the order profile to verify your {product} details and initiate a damage replacement claim."
+            concise = "I apologize for the damaged item. Arranging a replacement shipment for you now."
+
         suggestions = [
-            {"type": "empathetic", "reply": "I understand your frustration and apologize for the inconvenience. Let me look into this for you.", "reasoning": "Standard de-escalation text", "confidence": 0.8},
-            {"type": "professional", "reply": "Thank you for contacting us. I am accessing your account to review the transactions now.", "reasoning": "Polite action statement", "confidence": 0.8},
-            {"type": "concise", "reply": "I apologize. I am checking your account records now to resolve this.", "reasoning": "Direct and brief action", "confidence": 0.8}
+            {"type": "empathetic", "reply": empathetic, "reasoning": "Empathizes with the customer's specific support inquiry to build trust.", "confidence": 0.8},
+            {"type": "professional", "reply": professional, "reasoning": "Provides clear, direct next steps based on standard operating procedures.", "confidence": 0.8},
+            {"type": "concise", "reply": concise, "reasoning": "Direct and brief action to minimize customer reading time.", "confidence": 0.8}
         ]
 
     # Save latency logs for Collaboration Viewer
