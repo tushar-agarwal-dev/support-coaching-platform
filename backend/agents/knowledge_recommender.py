@@ -6,6 +6,29 @@ from backend.rag.pipeline import get_embedding_model
 
 logger = logging.getLogger(__name__)
 
+def _get_all_chunks_sync() -> list:
+    from backend.database.mongodb import MongoDB
+    if MongoDB.db is None:
+        return []
+    if MongoDB.is_mock:
+        store = MongoDB.db.store.get("document_chunks", {})
+        return list(store.values())
+    else:
+        import asyncio
+        async def fetch():
+            cursor = MongoDB.db["document_chunks"].find({})
+            return await cursor.to_list(length=1000)
+        try:
+            loop = asyncio.get_running_loop()
+            future = asyncio.run_coroutine_threadsafe(fetch(), loop)
+            return future.result()
+        except RuntimeError:
+            try:
+                loop = asyncio.new_event_loop()
+                return loop.run_until_complete(fetch())
+            except Exception:
+                return []
+
 def knowledge_recommender_node(state: ConversationState) -> dict:
     """LangGraph node retrieving relevant supporting documents from ChromaDB."""
     start_time = time.time()
@@ -20,12 +43,7 @@ def knowledge_recommender_node(state: ConversationState) -> dict:
         import os
         if os.environ.get("RENDER") == "true":
             logger.info("Running on Render: Performing keyword-based fallback search from MongoDB...")
-            from backend.database.mongodb import get_sync_db
-            db = get_sync_db()
-            
-            # Fetch all chunks
-            cursor = db["document_chunks"].find({})
-            all_chunks = list(cursor)
+            all_chunks = _get_all_chunks_sync()
             
             # Match keywords
             query_words = set(message_content.lower().split())
