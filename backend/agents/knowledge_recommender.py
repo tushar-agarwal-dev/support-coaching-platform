@@ -17,39 +17,74 @@ def knowledge_recommender_node(state: ConversationState) -> dict:
         return {"retrieved_knowledge": []}
 
     try:
-        # Load embedding model and client
-        model = get_embedding_model()
-        query_embedding = model.encode([message_content])[0].tolist()
-
-        chroma_client = get_chroma_client()
-        collection = chroma_client.get_or_create_collection(name="knowledge_base")
-
-        # Retrieve top 3
-        results = collection.query(
-            query_embeddings=[query_embedding],
-            n_results=3
-        )
-
-        retrieved = []
-        if results and results.get("documents") and results["documents"][0]:
-            documents = results["documents"][0]
-            metadatas = results["metadatas"][0] if results.get("metadatas") else []
-            distances = results["distances"][0] if results.get("distances") else []
-            ids = results["ids"][0] if results.get("ids") else []
-
-            for i in range(len(documents)):
-                dist = distances[i] if i < len(distances) else 0.5
-                sim_score = max(0.0, 1.0 - (dist / 2.0))
-                meta = metadatas[i] if i < len(metadatas) else {}
-                
+        import os
+        if os.environ.get("RENDER") == "true":
+            logger.info("Running on Render: Performing keyword-based fallback search from MongoDB...")
+            from backend.database.mongodb import get_sync_db
+            db = get_sync_db()
+            
+            # Fetch all chunks
+            cursor = db["document_chunks"].find({})
+            all_chunks = list(cursor)
+            
+            # Match keywords
+            query_words = set(message_content.lower().split())
+            matches = []
+            for chunk in all_chunks:
+                text_lower = chunk["text"].lower()
+                # Count matches for words longer than 3 characters to avoid common stops
+                score = sum(1 for word in query_words if len(word) > 3 and word in text_lower)
+                if score > 0:
+                    matches.append((score, chunk))
+                    
+            # Sort by score descending
+            matches.sort(key=lambda x: x[0], reverse=True)
+            
+            retrieved = []
+            for score, chunk in matches[:3]:
+                sim_score = min(0.95, 0.45 + (score * 0.1))
                 retrieved.append({
-                    "text": documents[i],
+                    "text": chunk["text"],
                     "score": round(sim_score, 4),
-                    "document_name": meta.get("document_name", "Unknown File"),
-                    "page_number": meta.get("page_number", 1),
-                    "chunk_id": ids[i] if i < len(ids) else f"chunk_{i}",
+                    "document_name": chunk.get("document_name", "Unknown File"),
+                    "page_number": chunk.get("page_number", 1),
+                    "chunk_id": chunk["_id"],
                     "confidence_score": round(sim_score, 2)
                 })
+        else:
+            # Load embedding model and client
+            model = get_embedding_model()
+            query_embedding = model.encode([message_content])[0].tolist()
+
+            chroma_client = get_chroma_client()
+            collection = chroma_client.get_or_create_collection(name="knowledge_base")
+
+            # Retrieve top 3
+            results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=3
+            )
+
+            retrieved = []
+            if results and results.get("documents") and results["documents"][0]:
+                documents = results["documents"][0]
+                metadatas = results["metadatas"][0] if results.get("metadatas") else []
+                distances = results["distances"][0] if results.get("distances") else []
+                ids = results["ids"][0] if results.get("ids") else []
+
+                for i in range(len(documents)):
+                    dist = distances[i] if i < len(distances) else 0.5
+                    sim_score = max(0.0, 1.0 - (dist / 2.0))
+                    meta = metadatas[i] if i < len(metadatas) else {}
+                    
+                    retrieved.append({
+                        "text": documents[i],
+                        "score": round(sim_score, 4),
+                        "document_name": meta.get("document_name", "Unknown File"),
+                        "page_number": meta.get("page_number", 1),
+                        "chunk_id": ids[i] if i < len(ids) else f"chunk_{i}",
+                        "confidence_score": round(sim_score, 2)
+                    })
 
         valid_recs = [rec for rec in retrieved if rec["score"] >= 0.40]
         if not valid_recs:
