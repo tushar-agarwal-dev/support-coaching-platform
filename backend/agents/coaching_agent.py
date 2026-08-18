@@ -83,25 +83,33 @@ def coaching_agent_node(state: ConversationState) -> dict:
         metadata = state.get("metadata", {}) or {}
         product = metadata.get("product", "service")
         issue = metadata.get("issue_type", "problem")
-        latest_msg = message_content.lower()
+        
+        # Find the latest customer message in history to search keywords against
+        customer_msg_text = ""
+        for msg in reversed(state.get("history", [])):
+            if msg.get("role") == "customer":
+                customer_msg_text = msg.get("content", "").lower()
+                break
+        if not customer_msg_text:
+            customer_msg_text = message_content.lower() # Fallback to agent message if no history
         
         empathetic = "I understand your frustration regarding this issue. Let me look into this and resolve it for you."
         professional = f"I am accessing your account profile now to investigate the {issue} on your {product}."
         concise = f"I apologize. Checking your {product} status now to resolve the {issue}."
         
-        if "refund" in latest_msg or "billing" in latest_msg or "charge" in latest_msg:
+        if "refund" in customer_msg_text or "billing" in customer_msg_text or "charge" in customer_msg_text:
             empathetic = "I completely understand your frustration with this billing issue. Let me check our billing history to refund any duplicate charges right away."
             professional = f"Thank you for reaching out. I am opening our billing logs now to review the transactions for your {product}."
             concise = "I apologize for the charge. Checking your payment history now to issue a refund."
-        elif any(k in latest_msg for k in ["delivery", "late", "ship", "track", "package"]):
+        elif any(k in customer_msg_text for k in ["delivery", "late", "ship", "track", "package"]):
             empathetic = "I know how frustrating it is when a shipment is delayed. Let me track this delivery and see where it is held up."
             professional = f"I am looking up the transit details and shipping carrier status for your {product}."
             concise = "I apologize for the delivery delay. Checking your package status now."
-        elif any(k in latest_msg for k in ["e-sim", "esim", "sim", "service", "signal"]):
+        elif any(k in customer_msg_text for k in ["e-sim", "esim", "sim", "service", "signal"]):
             empathetic = "I understand the urgency of having mobile service. Let me check your eSIM activation state."
             professional = f"I am checking the network activation portal for your {product} to verify the eSIM status."
             concise = "Apologies for the cellular issue. Verifying your eSIM status now."
-        elif any(k in latest_msg for k in ["damage", "broken", "crack", "cracked", "faulty"]):
+        elif any(k in customer_msg_text for k in ["damage", "broken", "crack", "cracked", "faulty"]):
             empathetic = "I am so sorry to hear that your item arrived damaged. Let me set up a free replacement order for you."
             professional = f"I am reviewing the order profile to verify your {product} details and initiate a damage replacement claim."
             concise = "I apologize for the damaged item. Arranging a replacement shipment for you now."
