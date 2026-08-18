@@ -31,4 +31,9 @@ export const documentService = {
   async deleteDocument(docId: string): Promise<void> {
     await api.delete(`/api/knowledge/${docId}`);
   },
+
+  async loadDemoDocument(): Promise<Document> {
+    const response = await api.post<Document>('/api/knowledge/load-demo');
+    return response.data;
+  },
 };

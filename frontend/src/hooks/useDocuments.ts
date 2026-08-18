@@ -25,6 +25,13 @@ export const useDocuments = () => {
     },
   });
 
+  const loadDemoMutation = useMutation({
+    mutationFn: () => documentService.loadDemoDocument(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+
   return {
     documents: documentsQuery.data || [],
     isLoading: documentsQuery.isLoading,
@@ -33,5 +40,7 @@ export const useDocuments = () => {
     isUploading: uploadMutation.isPending,
     deleteDocument: deleteMutation.mutateAsync,
     isDeleting: deleteMutation.isPending,
+    loadDemoDocument: loadDemoMutation.mutateAsync,
+    isLoadingDemo: loadDemoMutation.isPending,
   };
 };

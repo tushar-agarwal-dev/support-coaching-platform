@@ -14,7 +14,14 @@ import {
 } from 'lucide-react';
 
 export const KnowledgeBase: React.FC = () => {
-  const { documents, isLoading, uploadDocument, deleteDocument } = useDocuments();
+  const { 
+    documents, 
+    isLoading, 
+    uploadDocument, 
+    deleteDocument, 
+    loadDemoDocument, 
+    isLoadingDemo 
+  } = useDocuments();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Upload States
@@ -80,6 +87,16 @@ export const KnowledgeBase: React.FC = () => {
       console.error(err);
       setUploadError(err.response?.data?.detail || 'Failed to parse and upload document.');
       setUploadProgress(null);
+    }
+  };
+
+  const handleLoadDemo = async () => {
+    setUploadError(null);
+    try {
+      await loadDemoDocument();
+    } catch (err: any) {
+      console.error(err);
+      setUploadError(err.response?.data?.detail || 'Failed to seed demo knowledge base.');
     }
   };
 
@@ -149,6 +166,28 @@ export const KnowledgeBase: React.FC = () => {
               </div>
               <p className="text-xs font-semibold text-white">Drag & drop files here, or click to browse</p>
               <p className="text-[10px] text-slate-500 mt-1.5">Supports PDF, DOCX, and TXT up to 10MB</p>
+            </div>
+
+            {/* Quick Demo Loader */}
+            <div className="border-t border-slate-900/60 pt-4 flex flex-col space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Quick Sandbox Start</span>
+              <button
+                onClick={handleLoadDemo}
+                disabled={isLoadingDemo}
+                className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-indigo-600/10 hover:bg-indigo-600/20 active:bg-indigo-600/30 border border-indigo-500/25 hover:border-indigo-500/40 text-indigo-400 font-bold rounded-xl text-xs uppercase transition-all duration-150 disabled:opacity-50"
+              >
+                {isLoadingDemo ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span>Seeding Demo Content...</span>
+                  </>
+                ) : (
+                  <>
+                    <FolderOpen className="w-4 h-4 text-indigo-400" />
+                    <span>Load Demo Knowledge Base</span>
+                  </>
+                )}
+              </button>
             </div>
 
             {/* Upload Progress Bar */}
