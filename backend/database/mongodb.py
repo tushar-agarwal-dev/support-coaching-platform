@@ -106,6 +106,15 @@ class MockCollection:
         self.store[self.name][doc["_id"]] = copy.deepcopy(doc)
         return doc
 
+    async def insert_many(self, docs):
+        inserted_docs = []
+        for doc in docs:
+            if "_id" not in doc:
+                doc["_id"] = str(uuid.uuid4())
+            self.store[self.name][doc["_id"]] = copy.deepcopy(doc)
+            inserted_docs.append(doc)
+        return inserted_docs
+
     def find(self, query=None):
         query = query or {}
         results = []
@@ -218,3 +227,13 @@ class MongoDB:
 
 async def get_database():
     return MongoDB.db
+
+_sync_db = None
+
+def get_sync_db():
+    global _sync_db
+    if _sync_db is None:
+        from pymongo import MongoClient
+        client = MongoClient(settings.MONGODB_URI, serverSelectionTimeoutMS=5000)
+        _sync_db = client[settings.MONGODB_DB_NAME]
+    return _sync_db
