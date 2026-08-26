@@ -161,7 +161,8 @@ class RAGPipeline:
         logger.info(f"Ingested {file_name} into ChromaDB: {chunk_count} chunks stored.")
         return {
             "chunk_count": chunk_count,
-            "chroma_ids": chroma_ids
+            "chroma_ids": chroma_ids,
+            "chunks": final_chunks
         }
 
     @classmethod

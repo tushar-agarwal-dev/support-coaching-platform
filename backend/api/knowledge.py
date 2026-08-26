@@ -39,6 +39,22 @@ async def process_document_task(doc_id: str, file_name: str, file_content: bytes
                 }
             }
         )
+        
+        # Save chunks to MongoDB collection
+        chunks_records = [
+            {
+                "_id": f"{doc_id}_chunk_{i}",
+                "document_id": doc_id,
+                "document_name": file_name,
+                "text": chunk["text"],
+                "page_number": chunk["metadata"]["page_number"],
+                "created_at": datetime.utcnow()
+            }
+            for i, chunk in enumerate(result.get("chunks", []))
+        ]
+        if chunks_records:
+            await db["document_chunks"].insert_many(chunks_records)
+            
         logger.info(f"Background ingestion task successfully completed for document: {doc_id}")
     except Exception as e:
         logger.error(f"Failed background ingestion task for doc {doc_id}: {e}", exc_info=True)
@@ -253,6 +269,22 @@ SECTION 4: TELECOM & MOBILITY SUPPORT
                 }
             }
         )
+        
+        # Save chunks to MongoDB collection
+        chunks_records = [
+            {
+                "_id": f"{doc_id}_chunk_{i}",
+                "document_id": doc_id,
+                "document_name": demo_name,
+                "text": chunk["text"],
+                "page_number": chunk["metadata"]["page_number"],
+                "created_at": datetime.utcnow()
+            }
+            for i, chunk in enumerate(result.get("chunks", []))
+        ]
+        if chunks_records:
+            await db["document_chunks"].insert_many(chunks_records)
+            
         doc_record["status"] = DocumentStatus.COMPLETED
         doc_record["chunk_count"] = result["chunk_count"]
         doc_record["chroma_ids"] = result["chroma_ids"]
@@ -312,5 +344,6 @@ async def delete_document(
     
     # Delete from MongoDB
     await db["documents"].delete_one({"_id": doc_id})
+    await db["document_chunks"].delete_many({"document_id": doc_id})
     
     return {"message": "Document successfully deleted", "document_id": doc_id}
