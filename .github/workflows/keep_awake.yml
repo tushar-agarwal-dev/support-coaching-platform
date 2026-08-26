@@ -1,0 +1,22 @@
+name: Keep Render Backend Awake
+
+on:
+  schedule:
+    # Run every 10 minutes (Render free tier spins down after 15 minutes of inactivity)
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  keep-awake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Health Check
+        run: |
+          echo "Pinging Vantrix backend..."
+          response=$(curl -s -w "%{http_code}" https://vantrix-backend.onrender.com/api/health -o /dev/null)
+          echo "Response code: $response"
+          if [ "$response" -eq 200 ]; then
+            echo "Successfully pinged backend!"
+          else
+            echo "Backend returned status code: $response"
+          fi
