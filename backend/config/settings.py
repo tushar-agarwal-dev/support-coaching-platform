@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str | None = None
     GROQ_MODEL_NAME: str = "llama-3.1-8b-instant"
 
+    # OpenRouter Settings
+    OPENROUTER_API_KEY: str | None = None
+    OPENROUTER_MODEL_NAME: str = "meta-llama/llama-3-8b-instruct:free"
+
 
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),

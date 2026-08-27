@@ -200,7 +200,20 @@ class MockLLM:
         return MockMessage()
 
 def get_llm() -> Any:
-    """Returns ChatGroq if GROQ_API_KEY exists, otherwise returns MockLLM."""
+    """Returns ChatOpenAI (for OpenRouter) if OPENROUTER_API_KEY exists, ChatGroq if GROQ_API_KEY exists, otherwise returns MockLLM."""
+    if settings.OPENROUTER_API_KEY:
+        try:
+            from langchain_openai import ChatOpenAI
+            logger.info(f"Initializing OpenRouter ChatLLM client with model {settings.OPENROUTER_MODEL_NAME}...")
+            return ChatOpenAI(
+                api_key=settings.OPENROUTER_API_KEY,
+                base_url="https://openrouter.ai/api/v1",
+                model=settings.OPENROUTER_MODEL_NAME,
+                temperature=0.2
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenRouter: {e}. Falling back to Groq/MockLLM.")
+
     if settings.GROQ_API_KEY:
         try:
             from langchain_groq import ChatGroq
@@ -213,6 +226,6 @@ def get_llm() -> Any:
         except Exception as e:
             logger.error(f"Failed to initialize ChatGroq: {e}. Falling back to MockLLM.")
     else:
-        logger.info("GROQ_API_KEY not found in environment. MockLLM simulator activated.")
+        logger.info("No active LLM API keys found in environment. MockLLM simulator activated.")
     
     return MockLLM()
